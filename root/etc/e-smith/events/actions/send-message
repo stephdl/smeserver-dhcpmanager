@@ -1,0 +1,20 @@
+#!/usr/bin/perl -w
+
+#----------------------------------------------------------------------
+# Author Stephen Noble <stephen@dungog.net>
+# create backup scripts for dungog-USERbackup
+#----------------------------------------------------------------------
+
+	my $userName = $ARGV [0];
+	my $message = $ARGV [1];
+	chomp $message ;
+
+	# supression de certain caratere indesirable.... liste certainement non exhautisve.
+    $message =~ s/'&|`"\/$^~//g;
+
+  	#recreate current disk free
+	
+  	#system("/bin/echo '$message' | /usr/bin/smbclient -M $userName -U admin >> /var/log/send-massage") ;
+  	system("/bin/echo '$message' | /usr/bin/smbclient -M $userName -U admin >> /dev/null") ;
+
+exit (0);

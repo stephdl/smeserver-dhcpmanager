@@ -1,0 +1,978 @@
+#!/usr/bin/perl -wU
+
+#----------------------------------------------------------------------
+# heading     : Configuration
+# description : DHCP manager
+# navigation  : 6000 6900
+# 
+# Copyright (c) 2003 Thierry Quaak  thierry@quaak.net
+#               2014 Stephane de Labrusse stephdl@de-labrusse.fr
+#----------------------------------------------------------------------
+      
+###Set NameSpace of Panel
+package VI_panel;
+
+###Call Modules
+use strict;
+use CGI ':all';
+use CGI::Carp qw(fatalsToBrowser);
+use esmith::cgi;
+use esmith::util;
+use esmith::templates;
+use esmith::ConfigDB;
+use esmith::AccountsDB;
+use esmith::FormMagick;
+use Net::Ping;
+use esmith::util::network qw(:all);
+use Socket qw( inet_aton );
+
+###Declare function prototypes
+sub Main_Display ($$);
+sub Load_leases ($);
+sub Main_Save ($);
+sub Del_Lease ($);
+sub Perform_Del_Lease ($);
+sub Wake_Up ($);
+sub Perform_Wake_Up ($);
+sub Message ($$);
+sub Global_WinPopup ($);
+sub Perform_Message ($);
+sub Table_IP ($$);
+sub Scan_Local_Network ($);
+sub Del_all_Lease ($);
+sub Perform_del_all_Lease ($);
+sub Save_checkip ($);
+
+### Clear PATH and related environment variables so that calls to
+### external programs do not cause results to be tainted. See
+### "perlsec" manual page for details.
+BEGIN {
+    $ENV {'PATH'} = '';
+    $ENV {'SHELL'} = '/bin/bash';
+    delete $ENV {'ENV'};
+}
+
+###Define package global to SME configuration paramters using "old" method.
+###We are using this method, over esmith::ConfigDB, to satisfy syntax in
+###esmith::cgi
+our %conf = ();
+tie %conf, 'esmith::config';
+our @liste_computer  ;
+our @liste_connected  ;
+
+###Change UID -- not sure what we are doing this, but all panels seem to 
+###call this function.
+esmith::util::setRealToEffective ();
+our %status           = ('enabled'  => 'Yes',
+                        'disabled' => 'No'
+                        );
+
+our %check           = ('enabled'  => 'Yes',
+                        'disabled' => 'No'
+                        );
+
+###Restrict uploads to form submittals only
+$CGI::POST_MAX=1024 * 100;  # max 100K posts
+$CGI::DISABLE_UPLOADS = 1;  # no uploads
+
+###Examine state parameter and display the appropriate form
+my $q = new CGI;
+if (! grep (/^state$/, $q->param)){    Main_Display($q, '');}
+elsif ($q->param ('state') eq "main_display"){Main_Display ($q,'');}
+elsif ($q->param ('state') eq "Refresh"){Table_IP ($q, '');}
+elsif ($q->param ('state') eq "main_save"){Main_Save ($q);}
+elsif ($q->param ('state') eq "del_lease"){Del_Lease ($q);}
+elsif ($q->param ('state') eq "perform_del_lease"){Perform_Del_Lease ($q);}
+elsif ($q->param ('state') eq "wake_up"){Wake_Up ($q);}
+elsif ($q->param ('state') eq "perform_wake_up"){Perform_Wake_Up ($q);}
+elsif ($q->param ('state') eq "Global WinPopup"){Global_WinPopup ($q);}
+elsif ($q->param ('state') eq "message"){Message ($q,'');}
+elsif ($q->param ('state') eq "perform_message"){Perform_Message ($q);}
+elsif ($q->param ('state') eq "Connected IP"){Table_IP ($q,'');}
+elsif ($q->param ('state') eq "Scan your Network"){Scan_Local_Network ($q);}
+elsif ($q->param ('state') eq "Remove all entries"){Del_all_Lease ($q);}
+elsif ($q->param ('state') eq "Remove all dhcp leases"){Perform_del_all_Lease ($q);}
+elsif ($q->param ('state') eq 'Save/Restart'){Save_checkip ($q);}
+else{esmith::cgi::genStateError ($q, \%conf);}
+exit (0);
+
+#===============================================================================
+#SUBROUTINE TO SHOW MAIN PANEL
+#===============================================================================
+sub Main_Display ($$){
+
+    ###Pull cgi object from parameters array
+    my $q = shift;
+	my @computer;
+	my $status ;
+
+    ###Pull action message, if any, from parameters array
+    my $action_message = shift;
+
+    ###Retrieve SME configuration entry for dhcpd
+    my $dbh_sme = esmith::ConfigDB->open('/home/e-smith/db/configuration');
+    my %sme_conf = $dbh_sme->get('dhcpd')->props;
+
+    ###Display Main Panel Title
+    esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCP on your Network');
+
+    ###Check to see if we just processed a panel action.  If so, display
+    ###action message and bail.
+    if ($action_message) {
+        print $q->h3 ('Operation status report...');
+        print $q->b ("$action_message");
+    }
+
+    #------------------------------------------------------------
+    # Start DHCP client Panel 
+    #------------------------------------------------------------
+    print $q->p ('');
+    print $q->startform (-method => 'POST',
+                         -action => $q->url (-absolute => 1));
+    #print $q->hr;		
+    #print $q->h3 ('Managing DHCP clients...');
+
+	print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genWidgetRow ($q, "Always check status of computers in the panel \"Connected IP\" (No is much faster. Use Save/Restart below to activate your changes) ",
+      $q->popup_menu (-name    => 'dhcp_check',
+                      -values  => ['disabled', 'enabled'],
+                      -default => $sme_conf{'check'},
+                      -labels  => \%check)) );
+
+    #see table connected ip -> Table_ip
+    #print $q->p ;
+    print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('Show all devices connected to the dhcp server :')));
+    print $q->Tr (esmith::cgi::genButtonRow ($q,$q->submit (-name => 'state',-value => 'Connected IP')));
+    
+   # scan the local network with nmap
+    #print $q->p ;
+    print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('Scan your network to show active devices :')));
+    print $q->Tr (esmith::cgi::genButtonRow ($q,$q->submit (-name => 'state',-value => 'Scan your Network'))); 
+    
+	#Global Winpopup
+    print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('Send a global WinPopup with Net send protocol to all connected devices using a compatible client')));
+    print $q->Tr (esmith::cgi::genButtonRow ($q,$q->submit (-name => 'state',-value => 'Global WinPopup')));
+    print $q->hidden (-name => 'liste_connected', -override => 1, -default => "@liste_connected");
+
+
+    #------------------------------------------------------------
+    # Start DHCP daemon Panel 
+    #------------------------------------------------------------
+    print $q->hr;
+    print $q->h3 ('Managing DHCP daemon (server)...');
+
+	if (! $sme_conf{'winscustom'} ) {
+		$sme_conf{'winscustom'} = 'disabled' ;
+	}
+	if (! $sme_conf{'dnscustom'} ) {
+		$sme_conf{'dnscustom'} = 'disabled' ;
+	}
+	if ( ! $sme_conf{'leasetime'} )
+	{ $sme_conf{'leasetime'} =  "86400" ; 
+	}
+	if (! $sme_conf{'gatewaycustom'} ) {
+		$sme_conf{'gatewaycustom'} = 'disabled' ;
+	}
+		
+	# - modofication des plage DHCP
+	print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genWidgetRow ($q, "Enable DHCPd ",
+      $q->popup_menu (-name    => 'dhcp_enable',
+                      -values  => ['enabled', 'disabled'],
+                      -default => $sme_conf{'status'},
+                      -labels  => \%status)) ,
+
+    esmith::cgi::genNameValueRow ($q,
+                                  'DHCP Start ',
+                                  'dhcp_start',
+                                  $sme_conf{'start'}) ,
+    esmith::cgi::genNameValueRow ($q,
+                                  #'-' . $sme_conf{'winscustom'} . '-',
+                                  'DHCP End ' ,
+                                  'dhcp_end',
+                                  $sme_conf{'end'}),
+
+	esmith::cgi::genTextRow ($q,
+     $q->p ('Set "Custom WINS Server" to Yes to provide a custom WINS Server address to all your DHCP client.')),
+    esmith::cgi::genWidgetRow ($q, "Custom WINS Server ",
+      $q->popup_menu (-name    => 'dhcp_winscustom',
+                      -values  => ['enabled', 'disabled'],
+                      -default => $sme_conf{'winscustom'},
+                      -labels  => \%status)),
+
+    esmith::cgi::genNameValueRow ($q,
+                                  'WINS Server address',
+                                  'dhcp_winsserver',
+                                  $sme_conf{'winsserver'}),
+
+	#### Custom DNS
+	esmith::cgi::genTextRow ($q,
+     $q->p ('Set "Custom DNS" to Yes to provide a custom DNS address to all your DHCP client.')),
+    esmith::cgi::genWidgetRow ($q, "Custom DNS ",
+      $q->popup_menu (-name    => 'dhcp_dnscustom',
+                      -values  => ['enabled', 'disabled'],
+                      -default => $sme_conf{'dnscustom'},
+                      -labels  => \%status)),
+
+    esmith::cgi::genNameValueRow ($q,
+                                  'Primary DNS',
+                                  'dhcp_dns1server',
+                                  $sme_conf{'dns1server'}),
+    esmith::cgi::genNameValueRow ($q,
+                                  'Secondary DNS',
+                                  'dhcp_dns2server',
+                                  $sme_conf{'dns2server'}),
+
+	#### Custom default Gateway
+	esmith::cgi::genTextRow ($q,
+     $q->p ('Set "Custom gateway" to Yes to provide a custom default gateway address to all your DHCP client.')),
+    esmith::cgi::genWidgetRow ($q, "Custom gateway",
+      $q->popup_menu (-name    => 'dhcp_gatewaycustom',
+                      -values  => ['enabled', 'disabled'],
+                      -default => $sme_conf{'gatewaycustom'},
+                      -labels  => \%status)),
+
+    esmith::cgi::genNameValueRow ($q,
+                                  'Gateway address',
+                                  'dhcp_gateway',
+                                  $sme_conf{'gateway'}),
+
+	#dhcp LEASE SET UP
+	esmith::cgi::genTextRow ($q,
+     $q->p ('SME default lease time is set to 86400 second. You can change it as you need.')),
+    esmith::cgi::genNameValueRow ($q,
+                                  'Custom lease time (second)',
+                                  'dhcp_leasetime',
+                                  $sme_conf{'leasetime'})
+	);
+    print '</table>';
+
+    #print $q->hr;
+    #print $q->h3 ('Saving modification and restart the daemon...');
+    print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('After changing any settings above, you must save and' .
+            ' restart dhcpd.')));
+
+    print $q->Tr (esmith::cgi::genButtonRow ($q,
+      $q->submit (-name => 'action', -value => 'Save/Restart')));
+    print $q->hidden (-name => 'state', -override => 1, -default => 'main_save');
+    print $q->endform;
+    esmith::cgi::genFooter ($q);
+
+}
+
+#
+#===============================================================================
+#SUBROUTINE: Process Save From Main Panel
+#===============================================================================
+sub Main_Save ($){
+
+    ##Pull CGI object from parameters array
+    my $q = shift;
+
+    ###Build Hash of config parameters to update from cgi submit
+    my $dhcpd_status     	= $q->param ('dhcp_enable');
+    my $dhcpd_winscustom    = $q->param ('dhcp_winscustom');
+    my $dhcpd_check     	= $q->param ('dhcp_check');
+    my $dhcpd_start     	= $q->param ('dhcp_start');
+    my $dhcpd_end     	    = $q->param ('dhcp_end');
+    my $dhcpd_winsserver    = $q->param ('dhcp_winsserver');
+    my $dhcpd_leasetime     = $q->param ('dhcp_leasetime');
+    my $dhcpd_dnscustom     = $q->param ('dhcp_dnscustom');
+    my $dhcpd_dns1server    = $q->param ('dhcp_dns1server');
+    my $dhcpd_dns2server    = $q->param ('dhcp_dns2server');
+    my $dhcpd_gatewaycustom = $q->param ('dhcp_gatewaycustom');
+    my $dhcpd_gateway     	= $q->param ('dhcp_gateway');
+    
+    ###Update SME configuration dbase
+    my $dbh_sme = esmith::ConfigDB->open('/home/e-smith/db/configuration');
+
+    ##Initiate get method --> create record object
+    my $sme_record  = $dbh_sme->get('dhcpd');
+    #get localip of server
+    my $local_ip    = $dbh_sme->get_value('LocalIP');
+
+    ##Set status of service
+    $sme_record->set_prop('status', $dhcpd_status);
+    $sme_record->set_prop('check' , $dhcpd_check);
+    $sme_record->set_prop('winscustom', $dhcpd_winscustom);
+    $sme_record->set_prop('leasetime' , $dhcpd_leasetime);
+    $sme_record->set_prop('dnscustom' , $dhcpd_dnscustom);
+    $sme_record->set_prop('gatewaycustom' , $dhcpd_gatewaycustom);
+
+    #checkip to the dhcpserver, perform the save in DB configuration or display an error if value != of a valid ip or if dhcp_start is greater than dhcp_end
+    if ($dhcpd_status eq "enabled") 
+    {
+        if ( isValidIP ($dhcpd_start) && isValidIP ($dhcpd_end))
+        {
+            #check if $dhcpd_start is greater than $dhcpd_end and if yes, display an error message.
+            if (inet_aton($dhcpd_start) ge inet_aton($dhcpd_end))
+            {
+            esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCPd Settings ERRORS');
+            print $q->h3("DHCP Server : error....Incorrect range of IPs, the DHCP Start \($dhcpd_start\) is greater than the DHCP End \($dhcpd_end\), Update unsuccessfull\n");
+            print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+            esmith::cgi::genFooter ($q);
+            exit;    
+            }
+            elsif ( ( (inet_aton($dhcpd_start) le inet_aton($local_ip) ) && ( inet_aton($dhcpd_end)) ge inet_aton($local_ip) ) )
+            {
+            #display an error if the range of dhcp server include the ip of the server address
+            esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCPd Settings ERRORS');
+            print $q->h3("DHCP Server : error....Incorrect range of IPs, the range of IP address allocation must not include the server address\($local_ip\), Update unsuccessfull\n");
+            print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+            esmith::cgi::genFooter ($q);
+            exit;    
+            }
+            else
+            {
+            #set value
+            my $dhcpd_start = cleanIP($dhcpd_start);
+            my $dhcpd_end = cleanIP($dhcpd_end);
+
+            $sme_record->set_prop('end', $dhcpd_end);
+            $sme_record->set_prop('start', $dhcpd_start);
+            }
+        }  
+        #if $dhcpd_start or $dhcpd_end are not valid ip then display an error
+        else
+        {
+        esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCPd Settings ERRORS');
+        print $q->h3("DHCP Server address : error....Incorrect IP $dhcpd_start and $dhcpd_end, Update unsuccessfull\n");
+        print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+        esmith::cgi::genFooter ($q);
+        exit;    
+        }  
+    }  
+       
+    #checkip to the winserver perform the save in DB configuration or display an error if value != of a valid ip
+    if ($dhcpd_winscustom eq "enabled")
+    {
+
+        if ( isValidIP ($dhcpd_winsserver) )
+        {
+        #set value
+        my $dhcpd_winsserver = cleanIP($dhcpd_winsserver);
+        $sme_record->set_prop('winsserver', $dhcpd_winsserver);
+        }  
+        else
+        {
+        #if $dhcpd_winsserver is not valid ip then display an error
+        esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCPd Settings ERRORS');
+        print $q->h3("WINS Server address : error....Incorrect IP $dhcpd_winsserver, Update unsuccessfull\n");
+        print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+        esmith::cgi::genFooter ($q);
+        exit;    
+        }
+    }       
+
+    #checkip to the dnsserver custom, perform the save in DB configuration or display an error if value != of a valid ip
+    if ($dhcpd_dnscustom eq "enabled")
+    {
+        #check if $dhcpd_dns1server and ( $dhcpd_dns2server are valid ip or $dhcpd_dns2server = null )
+        if ( isValidIP ($dhcpd_dns1server) &&  (isValidIP($dhcpd_dns2server) || ( $dhcpd_dns2server eq "")  )   )
+        {
+        #set value
+        my $dhcpd_dns1server = cleanIP($dhcpd_dns1server);
+        $sme_record->set_prop('dns1server' , $dhcpd_dns1server);
+        my $dhcpd_dns2server = cleanIP($dhcpd_dns2server);
+        $sme_record->set_prop('dns2server' , $dhcpd_dns2server);
+        }
+        else
+        {
+        ##if $dhcpd_dns1server or $dhcpd_dns2server are not valid ip then display an error
+        esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCPd Settings ERRORS');
+        print $q->h3("Custom DNS Server address : error....Incorrect IP $dhcpd_dns1server and $dhcpd_dns2server, Update unsuccessfull\n");
+        print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+        esmith::cgi::genFooter ($q);
+        exit;    
+        }
+    }
+
+    #checkip to the gateway_custom perform the save in DB configuration or display an error if value != of a valid ip
+    if ($dhcpd_gatewaycustom eq "enabled") 
+    {
+        if ( isValidIP ($dhcpd_gateway) )
+        {
+        #set value
+        my $dhcpd_gateway = cleanIP($dhcpd_gateway);
+        $sme_record->set_prop('gateway' , $dhcpd_gateway);
+        }  
+        else
+        {        
+        #if $dhcpd_gateway is not valid ip then display an error
+        esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'DHCPd Settings ERRORS');        
+        print $q->h3("Gateway Custom Server address : error....Incorrect IP $dhcpd_gateway, Update unsuccessfull\n");
+        print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+        esmith::cgi::genFooter ($q);
+        exit;    
+        }
+    }    
+     
+
+    # - 4 expand templates
+    # changed to new sme standard signal-event
+    system ("/sbin/e-smith/signal-event","conf-dhcpmanager") == 0
+                or die ("Error occurred while restarting dhcpd.\n");
+   Main_Display($q, "Successfully saved settings" );
+    exit;
+}
+
+#
+#===============================================================================
+#SUBROUTINE: procedure qui supprime un bail dans le dhcpd.leases
+#===============================================================================
+sub Del_Lease ($){
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Start Panel.
+    esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'Removing a DHCP Lease');
+    print $q->h3('Remove an entry in dhcpd.leases');
+
+    print $q->startform (-method => 'POST', -action => $q->url (-absolute => 1));
+
+    my $ip = $q->param ('host');
+    my $name = $q->param ('name');
+
+    print $q->p ("You are about to remove <B>$name at $ip</B> from the <B>" .
+                 "dhcpd.leases</B> file.");
+    print $q->p ($q->b ("Are you sure ?"));
+
+    print $q->submit (-name => 'action', -value => 'Remove');
+    print $q->hidden (-name => 'host',
+                      -override => 1,
+                      -default => $ip
+                      );
+    print $q->hidden (-name => 'name',
+                      -override => 1,
+                      -default => $name
+                      );
+
+    print $q->hidden (-name     => 'state',
+                      -override => 1,
+                      -default  => 'perform_del_lease');
+
+    print $q->endform;
+    esmith::cgi::genFooter ($q);
+    return;
+
+}
+
+#===============================================================================
+#SUBROUTINE: Perform delete lease
+#===============================================================================
+sub Perform_Del_Lease($){
+
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Pull entry to delete
+    my $ip = $q->param('host');
+    my $name = $q->param('name');
+	my $name_in_file = '/var/lib/dhcpd/dhcpd.leases'  ;
+	my $name_tmp_file = '/var/lib/dhcpd/dhcpd.leases.tmp'  ;
+	my $name_out_file = '/var/lib/dhcpd/dhcpd.leases~'  ;
+	my $del_current = "0" ;
+
+	open(INFILE,"<$name_in_file") || die "Erreur de lecture $name_in_file, Erreur: $!";
+	open(OUTFILE,">$name_tmp_file") || die "Erreur d'ecriture $name_in_file, Erreur: $!";
+	while (<INFILE>) {
+        	if ( "$_" =~ /lease $ip/ ) {
+                	$del_current = "1" ;
+        	}
+        	if ( $del_current == "0" ) { print OUTFILE "$_" ; }
+        	if ( "$_" =~ /}/ ) {
+                	$del_current = "0" ;
+        	}
+	}
+	rename ($name_tmp_file,$name_in_file) ;
+	system ("/bin/cp","-f","$name_in_file","$name_out_file") ;
+	close(INFILE);
+	close(OUTFILE);
+
+    # changed to new sme standard signal-event
+    system ("/sbin/e-smith/signal-event","conf-dhcpmanager") == 0
+                or die ("Error occurred while restarting dhcpd.\n");
+    ###Return action message
+    #Main_Display($q, "Successfully deleted <B><i>$name at $ip</i></B> in dhcpd.leases. " );
+    Table_IP($q, "Successfully deleted <B><i>$name at $ip</i></B> in dhcpd.leases. " );
+    exit;
+}
+
+
+#===============================================================================
+#SUBROUTINE: procedure qui valide les parametres de l'host eteint 
+#===============================================================================
+sub Wake_Up ($){
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Start Panel.
+    esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'Waking Up a remote computer');
+    print $q->h3('You are about to wake up  a remote computer.');
+
+    print $q->startform (-method => 'POST', -action => $q->url (-absolute => 1));
+
+    my $mac = uc($q->param ('MAC'));
+    my $name = uc($q->param ('name'));
+
+    print $q->p ($q->b ("Are you sure you want to restart <B>$name at $mac</B>."));
+
+    print $q->submit (-name => 'action', -value => "Hey, wake up $name ");
+    print $q->hidden (-name => 'mac',
+                      -override => 1,
+                      -default => $mac
+                      );
+    print $q->hidden (-name => 'name',
+                      -override => 1,
+                      -default => $name
+                      );
+
+    print $q->hidden (-name     => 'state',
+                      -override => 1,
+                      -default  => 'perform_wake_up');
+
+    print $q->endform;
+    esmith::cgi::genFooter ($q);
+    return;
+}
+#===============================================================================
+#SUBROUTINE: Perform wake UP
+#===============================================================================
+sub Perform_Wake_Up($){
+
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Get Mac Adress
+    my $mac = uc($q->param('mac'));
+    my $name = uc($q->param('name'));
+	
+	#Send Wake Up to the station
+	#Old version obsolete since 1.5.0 - system ("/usr/bin/wol","$mac") ;
+	system ("/sbin/ether-wake","$mac") ;
+    ###Return action message
+    #Main_Display($q, "Successfully request to wake up  <B><i>$name at $mac</i></B> . The computer may take time to wake up. " );
+    Table_IP($q, "Successfully request to wake up  <B><i>$name at $mac</i></B> . The computer may take time to wake up. ");
+    exit;
+}
+
+#=========================================================================
+# Procedure qui charge le dhcpd.conf
+# retourne un tableau contenant les informations
+#=========================================================================
+sub Load_leases ($){
+
+	#Definition de variable
+	use vars qw/
+		@detail $work_line $header /; 
+	my $name_file = '/var/lib/dhcpd/dhcpd.leases'  ;
+    @liste_computer = '' ;
+	#Ouverture du fichier en lecture seule
+	open(FILE,"<$name_file") || die "Erreur de lecture $name_file, Erreur: $!" ;
+	
+	#Parcours du fichier dhcpd.leases
+	while (<FILE>) { 
+		# suppression des commentaires
+		if ($_ =~ /^#/) { next; }
+	
+		#spurresion des lignes vides
+		if ($_ =~ /^$/) { next; }
+        #supression de la ligne uid de windows
+		if ($_ =~ /uid/) { next; }
+        #supression de la ligne tstp de XP
+		if ($_ =~ /tstp/) { next; }
+        #supression de la ligne "binding state active"
+		if ($_ =~ /binding/) { next; }
+        #supression de la ligne "next binding state"
+		if ($_ =~ /next/) { next; }         
+		#suprresion des commentaire et des ;
+    	$_ =~ s/\s#.*$//;
+    	$_ =~ s/(;|{) *$//;
+	
+		#supression des espace en debut de lignes
+    	$_ =~ s/^ *\s//;
+		
+		#Suppression des retours chariot en fin de lignes.
+		chomp $_ ;
+        
+		#Chargement d'un tableau avec le contenu de la ligne.
+		(@detail) = split(/ /, $_) ;
+		
+		#initialisation d'un nouveau poste connecté
+		if ($_ =~ /lease/) { 
+			$work_line = "" ; 
+		}
+	
+		$header = shift(@detail);
+		$work_line = $work_line . ";" . join(" ",@detail) ;
+	
+		if ($header =~ /}/) { 
+		    $work_line =~ s/ /;/g;
+    		$work_line =~ s/^;//;
+    		$work_line =~ s/"//g;
+    		$work_line =~ s/;$//;         
+			push(@liste_computer,$work_line) ;
+            @liste_computer= sort(@liste_computer);	
+		}
+	}
+	close(FILE); 
+}
+
+#===============================================================================
+#SUBROUTINE: Message
+#===============================================================================
+sub Message($$){
+
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Pull entry to delete
+    my $name = $q->param('name');
+    my @liste_connected = $q->param('liste_connected');
+	my $message2send ;
+
+	if ( $name ) { 
+		@liste_connected = () ; 
+        push(@liste_connected,$name) ; }
+	else {$name = 'All of them'}
+
+    esmith::cgi::genHeaderNonCacheable ($q, \%conf,"Sending a WinPopup to @liste_connected");
+    print $q->h3("You are about to send a WinPopup to @liste_connected.");
+    print $q->startform (-method => 'POST', -action => $q->url (-absolute => 1));
+	print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genNameValueRow ($q, 'Your message', 'message2send',
+                                  'Write your message here') );
+    print '</table>';
+    print $q->hr;
+    print $q->p ($q->p ("Do you want to send this message to <B>$name</B> ?"));
+    print $q->submit (-name => 'action', -value => "Send a WinPopup to $name");
+    print $q->hidden (-name => 'liste_connected', -override => 1,
+                      -default => @liste_connected);
+    print $q->hidden (-name => 'message2send', -override => 1, -default => $message2send);
+    print $q->hidden (-name     => 'state', -override => 1, -default  => 'perform_message');
+    print $q->endform;
+    esmith::cgi::genFooter ($q);
+    return;
+}
+#===============================================================================
+#SUBROUTINE: Perform message
+#===============================================================================
+sub Perform_Message($){
+
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Get Mac Adress
+    my @liste_connected = split(' ',$q->param('liste_connected'));
+    my $message2send = $q->param('message2send');
+
+    foreach (@liste_connected){
+   	  system ("/etc/e-smith/events/actions/send-message","$_","$message2send") ;
+	}
+    #Main_Display($q, "Successfully sent message popup to <B>@liste_connected</B>. Warning, there is no garanty that the popup will appear on the remote computer. " );
+    Table_IP($q, "Successfully sent message popup to <B>@liste_connected</B>. Warning, there is no garanty that the popup will appear on the remote computer. " );
+    exit;
+}
+
+#===============================================================================
+#SUBROUTINE: Win Popup for all connected hosts
+#===============================================================================
+sub Global_WinPopup($){
+
+    my $q = shift;
+    my @liste_connected = $q->param('liste_connected');
+    Message($q,@liste_connected);
+    exit;
+}
+
+#===============================================================================
+#SUBROUTINE: Create Table_IP of dhcp server
+#===============================================================================
+sub Table_IP ($$) {
+    ###Pull cgi object from parameters array
+    my $q = shift;
+	my @computer;
+	my $status ;
+
+    ###Pull action message, if any, from parameters array
+    my $action_message = shift;
+
+    ###Retrieve SME configuration entry for dhcpd
+    my $dbh_sme = esmith::ConfigDB->open('/home/e-smith/db/configuration');
+    my %sme_conf = $dbh_sme->get('dhcpd')->props;
+
+       ###Display Main Panel Title
+    esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'Managing DHCP clients...');
+
+    ###Check to see if we just processed a panel action.  If so, display
+    ###action message and bail.
+    if ($action_message) {
+        print $q->h3 ('Operation status report...');
+        print $q->b ("$action_message");
+    }
+
+    #------------------------------------------------------------
+    # Start DHCP client Panel 
+    #------------------------------------------------------------
+    print $q->p ('');
+    print $q->startform (-method => 'POST',
+                         -action => $q->url (-absolute => 1));
+    
+	print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genWidgetRow ($q, "Always check status of computers in the panel (No is much faster. Use Save/Restart below to activate your changes) ",
+      $q->popup_menu (-name    => 'dhcp_check',
+                      -values  => ['disabled', 'enabled'],
+                      -default => $sme_conf{'check'},
+                      -labels  => \%check)) );
+                      
+     ##save checkip   ('Saving modification and restart the daemon...') and go to sub Save_checkip :) 
+    #print $q->h3 ('Saving modification and restart the daemon...');      
+     print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('After changing the check IP setting above, you must save and' .
+            ' restart dhcpd.')));
+
+    print $q->Tr (esmith::cgi::genButtonRow ($q,
+      $q->submit (-name => 'state', -value => 'Save/Restart')));
+        
+    # Refresh Liste
+    #print $q->p ;
+    print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('You may want to refresh this list ?'))) ;
+    print $q->Tr (esmith::cgi::genButtonRow ($q,$q->submit (-name => 'state',-value => 'Refresh')));
+    
+    #print $q->hr;
+    print $q->table ({border => 0, cellspacing => 0, cellpadding => 4},
+    esmith::cgi::genTextRow ($q,
+     $q->p ('You may want to clean all dhcp leases below ?'))) ;
+    print $q->Tr (esmith::cgi::genButtonRow ($q,$q->submit (-name => 'state',-value => 'Remove all entries')));
+    
+
+                    
+    print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+                
+	&Load_leases ($q) ;
+    if ( 2 > 1 ) {
+    	print $q->p ($q->b (''));
+    	print $q->table ({border => 1, cellspacing => 1, cellpadding => 4,nowarp => 1});
+    	print $q->Tr (esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'IP')),
+                  	esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'Network Name')),
+                  	esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'Status - click for WOL')),
+                  	esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'Start Date')),
+                  	esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'End Date')),
+                  	esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'MAC Address' . 
+														   '</CENTER>')),
+                 	);
+##9->netbios (ancien10)::8->mac address (ancien8)::0->ip::
+##it is possible you may adapt array number if more options/lines are added to the dhcpd.leases
+##symptoms are a blank line in Table_IP
+        foreach (@liste_computer){
+			@computer = split(/;/, $_) ;		
+		    if ( $computer[0] ) {
+
+				my $datedeb = $computer[2] . "-" . $computer[3] ;
+				my $datefin = $computer[5] . "-" . $computer[6] ;
+					$status = $q->a ({href => $q->url (-absolute => 1) . 
+							"?state=wake_up&MAC=" . $computer[8] . "&name=" . 
+					  		$computer[9]}, '<font color="orange">Not Checked...</font>') ;
+    		    if ( $sme_conf{'check'} =~ /enabled/ ) {
+					use Net::Ping;
+					my($ping_obj) = Net::Ping->new("icmp");
+                	$computer[9] =  uc($computer[9]) ;
+                	$computer[8] =  uc($computer[8]) ;
+					# formatage des dates
+					$computer[3] = substr($computer[3],0,5);
+					$computer[6] = substr($computer[6],0,5);
+					if ($ping_obj->ping("$computer[0]")) {
+                		push(@liste_connected,$computer[9]) ;
+				   		$status = "<font color='green'>Active Device</font>" ;
+						#alimentation de la liste des connecté
+					}
+					else { $status = $q->a ({href => $q->url (-absolute => 1) . 
+							"?state=wake_up&MAC=" . $computer[8] . "&name=" . 
+					  		$computer[9]}, '<font color="red">Wake-Up...</font>'); 
+					}
+				}
+				else {
+                		push(@liste_connected,$computer[9]) ;
+
+				}
+                print $q->Tr (esmith::cgi::genSmallCell ($q, "$computer[0]"),
+                          esmith::cgi::genSmallCell ($q, "$computer[9]"),
+			  			  esmith::cgi::genSmallCell ($q, "<CENTER>" ."$status" ), 
+                          esmith::cgi::genSmallCell ($q, "<CENTER>" . "$datedeb" . "</CENTER>"),
+                          esmith::cgi::genSmallCell ($q, "<CENTER>" . "$datefin" . "</CENTER>"),
+                          esmith::cgi::genSmallCell ($q, "$computer[8]"),
+						  esmith::cgi::genSmallCell ($q,
+                            $q->a ({href => $q->url (-absolute => 1)
+                            . "?state=del_lease&host=" . $computer[0] . "&name=" . 
+							$computer[9]}, 'Remove...')),
+						  esmith::cgi::genSmallCell ($q,
+                            $q->a ({href => $q->url (-absolute => 1)
+                            . "?state=message&name=" . $computer[9]}, 'WinPopup...'))
+                          );
+			}
+    	}
+    	print '</table>';
+	}
+    else{
+        print $q->p ($q->b ('There are no computer connected.'));
+    }
+
+	print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+    esmith::cgi::genFooter ($q);
+        exit;
+}
+#
+#===============================================================================
+#SUBROUTINE: procedure qui sauve le checkip de la subroutine Table_ip
+#===============================================================================
+sub Save_checkip ($){
+    
+    ##Pull CGI object from parameters array
+    my $q = shift;
+    
+    ###Build Hash of config parameters to update from cgi submit
+    my $dhcpd_check     	= $q->param ('dhcp_check');
+    
+    ##Initiate get method --> create record object
+    my $dbh_sme = esmith::ConfigDB->open('/home/e-smith/db/configuration');
+    
+    my $sme_record  = $dbh_sme->get('dhcpd');
+    
+    $sme_record->set_prop('check' , $dhcpd_check);
+    
+    system ("/sbin/e-smith/signal-event","conf-dhcpmanager") == 0
+                or die ("Error occurred while restarting dhcpd.\n"); 
+       Table_IP($q, "Successfully saved checkip status " );
+    exit;
+}     
+#
+#===============================================================================
+#SUBROUTINE: procedure qui supprime tous les  bail dans le dhcpd.leases
+#===============================================================================
+sub Del_all_Lease ($){
+    ###Pull CGI object from parameters array
+    $q = shift;
+
+    ###Start Panel.
+    esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'Removing all DHCP Lease');
+    print $q->h3('Remove all entries in dhcpd.leases may cause issues');
+
+    print $q->startform (-method => 'POST', -action => $q->url (-absolute => 1));
+    
+ 
+   
+      print $q->p (" The lease file is a log-structured file - whenever a lease changes, the
+       contents of that lease are written to the end of the file. ");
+       print $q->p ("This means that it is entirely possible for there to  be  two
+       or  more  declarations  of the same lease in the lease file at the same
+       time.");
+       print $q->p ("In that case,  the  instance  of  that  particular  lease  that
+       appears last in the file is the one that is in effect.");
+                 
+    print $q->p ($q->b ("Are you sure ?"));
+
+    print $q->submit (-name => 'state', -value => 'Remove all dhcp leases');
+    
+    print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+
+    print $q->endform;
+    esmith::cgi::genFooter ($q);
+    return;
+
+}    
+#
+#===============================================================================
+#SUBROUTINE: supprime tous les  bail dans le dhcpd.leases
+#===============================================================================   
+sub Perform_del_all_Lease ($){
+
+       system ('/bin/echo "" > /var/lib/dhcpd/dhcpd.leases') ==0
+                or die ("Error occurred while removing all leases");
+       
+       system ("/sbin/e-smith/signal-event","conf-dhcpmanager") == 0
+                or die ("Error occurred while restarting dhcpd.\n"); 
+                   
+     Table_IP($q, "Successfully deleted all entries in dhcpd.leases. " );
+    exit;
+}                  
+
+#===============================================================================
+#SUBROUTINE: Scan The Local Network
+#===============================================================================
+sub Scan_Local_Network ($) {           
+    
+        esmith::cgi::genHeaderNonCacheable ($q, \%conf, 'Scanning your network, the time needed depends of your subnet mask');
+        my $nmap_sme = esmith::ConfigDB->open('/home/e-smith/db/configuration');
+        my $mask = $nmap_sme->get_value('LocalNetmask');
+        my $network = $nmap_sme->get_prop('InternalInterface','Network');
+
+#we start to calculate the method to find the cidr (we want to use network/cidr with nmap)   
+
+   sub dec2bin {
+  my $str = unpack("B32", pack("N", shift));
+  return $str;
+}
+ 
+sub netmask2cidr {
+    my ($mask, $network) = @_;
+    my @octet = split (/\./, $mask);
+    my @bits;
+    my $binmask;
+    my $binoct;
+    my $bitcount=0;
+ 
+    foreach (@octet) {
+      $binoct = dec2bin($_);
+      $binmask = $binmask . substr $binoct, -8;
+    }
+ 
+    # let's count the 1s
+    @bits = split (//,$binmask);
+    foreach (@bits) {
+      if ($_ eq "1") {
+        $bitcount++;
+      }
+    }
+ 
+    my $cidr = $network . "/" . $bitcount;
+    return $cidr;
+}
+   
+#Then lets go to calculate the cidr    
+   my $cidr = netmask2cidr($mask, $network);
+
+#ok go to use nmap with nmap -T4 -sP network/cidr
+            print $q->p ;
+            print $q->h3("Your subnet appears to be $cidr and your netmask is $mask, please wait\n"); 
+            print $q->p ;
+
+         foreach  (` /usr/bin/nmap --script smb-os-discovery.nse -p U:137,T:139 $cidr|/bin/grep -Ev "MAC|NetBIOS|OS CPE"| /bin/grep -E "scan|done|Computer|OS"| /bin/sed -e 's/Nmap scan/-- Scan/g'|/bin/sed -e 's/done/Done/g'|/bin/sed -e 's/Nmap//g'|/bin/sed -e 's/|/  /g'`) {
+            print $q->br($_);}
+
+            print $q->p ;
+
+        print $q->p("<b><a href=dhcpd>Click Here</a></b> to return to" .
+                " main DHCPd panel.\n");
+        esmith::cgi::genFooter ($q);
+        exit;    
+        }     

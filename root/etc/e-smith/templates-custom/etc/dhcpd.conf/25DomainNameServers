@@ -1,0 +1,22 @@
+{
+
+    my $dhcpdnscustom = $DB->get_prop('dhcpd', 'dnscustom');
+    my $dhcpdns1server = $DB->get_prop('dhcpd', 'dns1server');
+    my $dhcpdns2server = $DB->get_prop('dhcpd', 'dns2server'); 
+
+        if ($dhcpdnscustom eq 'enabled')
+        {
+            if ($dhcpdns2server eq "" )
+            {
+            $OUT .= "        option domain-name-servers $dhcpdns1server;";
+            }
+            else
+            {
+            $OUT .= "    option domain-name-servers $dhcpdns1server, $dhcpdns2server;";
+            }
+        }
+        else
+        {
+        $OUT .= "    option domain-name-servers        $LocalIP;";
+        }
+} 

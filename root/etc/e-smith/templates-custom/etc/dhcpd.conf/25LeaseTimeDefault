@@ -1,0 +1,4 @@
+{
+ my $dhcpleasetime = $DB->get_prop('dhcpd', 'leasetime') || 86400; 
+ $OUT .= "    default-lease-time          $dhcpleasetime;";
+}

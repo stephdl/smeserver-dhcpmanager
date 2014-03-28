@@ -1,0 +1,6 @@
+{
+
+    my $leasetime = $DB->get_prop('dhcpd', 'leasetime') || 86400; 
+    my $maxleasetime = 7 * $leasetime;
+    $OUT .= "    max-lease-time          $maxleasetime;";
+}
