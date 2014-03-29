@@ -7,9 +7,9 @@ Name: %{name}
 Version: %{version}
 Release: %{release}%{?dist}
 Source: %{name}-%{version}.tar.gz
-Patch0:  smeserver-dhcpmanager-1.5-checkip-scanIP-and-new-panelIP.patch
-Patch1: smeserver-dhcpmanager-1.5-wording-scan_network-remove_all_leases-other_changes.patch
-Patch2: smeserver-dhcpmanager-1.5-add_default_values-change_nmap_options.patch
+#Patch0:  smeserver-dhcpmanager-1.5-checkip-scanIP-and-new-panelIP.patch
+#Patch1: smeserver-dhcpmanager-1.5-wording-scan_network-remove_all_leases-other_changes.patch
+#Patch2: smeserver-dhcpmanager-1.5-add_default_values-change_nmap_options.patch
 License: GNU GPL version 2
 URL: http://www.contribs.org
 Group: SMEserver/addon
@@ -50,9 +50,9 @@ Implementation of some feature arround dhcp clients like : wol, cleaning dhcpd.l
 
 %prep
 %setup
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
+#%patch0 -p1
+#%patch1 -p1
+#%patch2 -p1
 %build
 perl createlinks
 
