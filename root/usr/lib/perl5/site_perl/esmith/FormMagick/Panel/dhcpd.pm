@@ -1,4 +1,4 @@
-#!/usr/bin/perl -wU
+#!/usr/bin/perl -wT
 
 #----------------------------------------------------------------------
 # heading     : Configuration
