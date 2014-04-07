@@ -26,6 +26,10 @@ use Net::Ping;
 use esmith::util::network qw(:all);
 use Socket qw( inet_aton );
 
+our @ISA = qw(esmith::FormMagick Exporter);
+our @EXPORT = qw();
+
+
 ###Declare function prototypes
 sub Main_Display ($$);
 sub Load_leases ($);
