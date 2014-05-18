@@ -1,6 +1,6 @@
 %define name smeserver-dhcpmanager
 %define version 1.5
-%define release 11
+%define release 12
 
 Summary: provide a dhcp panel in the server-manager for The SME Server
 Name: %{name}
@@ -17,7 +17,7 @@ BuildRoot: %{_tmppath}/%{name}-buildroot
 #Prefix: %{_prefix}
 BuildArchitectures: noarch
 BuildRequires: e-smith-devtools
-Requires: e-smith-release >= 8.0
+Requires: e-smith-release >= 9.0
 Requires: net-tools
 Requires: nmap >= 2:6.25
 AutoReqProv: no
@@ -26,6 +26,9 @@ AutoReqProv: no
 Implementation of some feature arround dhcp clients like : wol, cleaning dhcpd.leases, Scan of your network etc//
 
 %changelog
+* Sun May 18 2014 Stephane de Labrusse <stephdl@de-labrusse.fr> smeserver-dhcpmanager-1.5-12
+- First release to sme9
+
 * Wed Feb 05 2014 Stephane de Labrusse <stephdl@de-labrusse.fr> smeserver-dhcpmanager-1.5-11
 - add default db values and change options to nmap in order to see name of computer
  
