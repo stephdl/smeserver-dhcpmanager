@@ -779,9 +779,9 @@ sub Table_IP ($$) {
                   	esmith::cgi::genSmallCell ($q, $q->p ( '<center>' . 'MAC Address' . 
 														   '</CENTER>')),
                  	);
-##9->netbios (ancien10)::8->mac address (ancien8)::0->ip::
+##9(sme8)12(sme9)->netbios (ancien10)::8(sme8)11(sme9)->mac address (ancien8)::0->ip::
 ##it is possible you may adapt array number if more options/lines are added to the dhcpd.leases
-##symptoms are a blank line in Table_IP
+##symptoms are a blank or wrong line in Table_IP
         foreach (@liste_computer){
 			@computer = split(/;/, $_) ;		
 		    if ( $computer[0] ) {
@@ -789,43 +789,43 @@ sub Table_IP ($$) {
 				my $datedeb = $computer[2] . "-" . $computer[3] ;
 				my $datefin = $computer[5] . "-" . $computer[6] ;
 					$status = $q->a ({href => $q->url (-absolute => 1) . 
-							"?state=wake_up&MAC=" . $computer[8] . "&name=" . 
-					  		$computer[9]}, '<font color="orange">Not Checked...</font>') ;
+							"?state=wake_up&MAC=" . $computer[11] . "&name=" . 
+					  		$computer[12]}, '<font color="orange">Not Checked...</font>') ;
     		    if ( $sme_conf{'check'} =~ /enabled/ ) {
 					use Net::Ping;
 					my($ping_obj) = Net::Ping->new("icmp");
-                	$computer[9] =  uc($computer[9]) ;
-                	$computer[8] =  uc($computer[8]) ;
+                	$computer[12] =  uc($computer[12]) ;
+                	$computer[11] =  uc($computer[11]) ;
 					# formatage des dates
 					$computer[3] = substr($computer[3],0,5);
 					$computer[6] = substr($computer[6],0,5);
 					if ($ping_obj->ping("$computer[0]")) {
-                		push(@liste_connected,$computer[9]) ;
+                		push(@liste_connected,$computer[12]) ;
 				   		$status = "<font color='green'>Active Device</font>" ;
 						#alimentation de la liste des connecté
 					}
 					else { $status = $q->a ({href => $q->url (-absolute => 1) . 
-							"?state=wake_up&MAC=" . $computer[8] . "&name=" . 
-					  		$computer[9]}, '<font color="red">Wake-Up...</font>'); 
+							"?state=wake_up&MAC=" . $computer[11] . "&name=" . 
+					  		$computer[12]}, '<font color="red">Wake-Up...</font>'); 
 					}
 				}
 				else {
-                		push(@liste_connected,$computer[9]) ;
+                		push(@liste_connected,$computer[12]) ;
 
 				}
                 print $q->Tr (esmith::cgi::genSmallCell ($q, "$computer[0]"),
-                          esmith::cgi::genSmallCell ($q, "$computer[9]"),
+                          esmith::cgi::genSmallCell ($q, "$computer[12]"),
 			  			  esmith::cgi::genSmallCell ($q, "<CENTER>" ."$status" ), 
                           esmith::cgi::genSmallCell ($q, "<CENTER>" . "$datedeb" . "</CENTER>"),
                           esmith::cgi::genSmallCell ($q, "<CENTER>" . "$datefin" . "</CENTER>"),
-                          esmith::cgi::genSmallCell ($q, "$computer[8]"),
+                          esmith::cgi::genSmallCell ($q, "$computer[11]"),
 						  esmith::cgi::genSmallCell ($q,
                             $q->a ({href => $q->url (-absolute => 1)
                             . "?state=del_lease&host=" . $computer[0] . "&name=" . 
-							$computer[9]}, 'Remove...')),
+							$computer[12]}, 'Remove...')),
 						  esmith::cgi::genSmallCell ($q,
                             $q->a ({href => $q->url (-absolute => 1)
-                            . "?state=message&name=" . $computer[9]}, 'WinPopup...'))
+                            . "?state=message&name=" . $computer[12]}, 'WinPopup...'))
                           );
 			}
     	}
