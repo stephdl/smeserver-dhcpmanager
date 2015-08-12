@@ -1,0 +1,338 @@
+<!-- vim: ft=xml ts=8 sw=4 noet:
+-->
+<lexicon lang="en-us" params="getExtraParams()">
+    <entry>
+        <base>DHCP manager</base>
+        <trans>DHCP Manager</trans>
+    </entry>
+    <entry>
+        <base>DHCPD_TITLE</base>
+        <trans>DHCP Manager</trans>
+    </entry>
+    <entry>
+        <base>DHCPD_SETTINGS_TITLE</base>
+        <trans>Settings of the DHCP server</trans>
+    </entry>
+    <entry>
+        <base>CONNECTED_IP</base>
+        <trans>Show DHCP Clients</trans>
+    </entry>
+    <entry>
+        <base>SCAN_YOUR_NETWORK</base>
+        <trans>Scan your network</trans>
+    </entry>
+    <entry>
+        <base>GLOBAL_WINPOPUP</base>
+        <trans>Send Global Netsend WinPopup</trans>
+    </entry>
+    <entry>
+        <base>CHECK_CLIENT_STATUS</base>
+        <trans>Always check the status of computers (Disabled is much faster)</trans>
+    </entry>
+    <entry>
+        <base>SHOW_CONNECTED_IP_TITLE</base>
+        <trans>Show all devices connected to the dhcp server :</trans>
+    </entry>
+    <entry>
+        <base>SCAN_YOUR_NETWORK_TITLE</base>
+        <trans>Scan your network to show active devices :</trans>
+    </entry>
+   <entry>
+        <base>GLOBAL_WINPOPUP_TITLE</base>
+        <trans>Send a global WinPopup with the Net send protocol</trans>
+    </entry>
+   <entry>
+        <base>STATUS_DHCP_SERVER</base>
+        <trans>State of DHCPD</trans>
+    </entry>
+   <entry>
+        <base>DHCP_START</base>
+        <trans>DHCP Start</trans>
+    </entry>
+   <entry>
+        <base>DHCP_END</base>
+        <trans>DHCP End</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_WINSERVER_TITLE</base>
+        <trans>Enable a WINS Server.</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_WINSERVER_STATUS</base>
+        <trans>WINS Server</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_WINSERVER_ADDRESS</base>
+        <trans>WINS Server address</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_DNS_TITLE</base>
+        <trans>Enable custom DNS servers.</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_DNS_STATUS</base>
+        <trans>Custom DNS</trans>
+    </entry>
+   <entry>
+        <base>PRIMARY_DNS_ADDRESS</base>
+        <trans>Primary DNS</trans>
+    </entry>
+   <entry>
+        <base>SECONDARY_DNS_ADDRESS</base>
+        <trans>Secondary DNS</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_GATEWAY_TITLE</base>
+        <trans>Enable a custom gateway address.</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_GATEWAY_STATUS</base>
+        <trans>Custom gateway</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_GATEWAY_ADDRESS</base>
+        <trans>Gateway address</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_LEASETIME_TITLE</base>
+        <trans>Set the lease time (default is 86400 seconds).</trans>
+    </entry>
+   <entry>
+        <base>CUSTOM_LEASETIME</base>
+        <trans>Custom lease time</trans>
+    </entry>
+   <entry>
+        <base>SAVE_TITLE</base>
+        <trans>After changing settings above, you must save and restart dhcpd.</trans>
+    </entry>
+   <entry>
+        <base>SAVE/RESTART</base>
+        <trans>Save/Restart</trans>
+    </entry>
+   <entry>
+        <base>DHCPD_SETTING_ERRORS</base>
+        <trans>DHCPd Settings ERRORS</trans>
+    </entry>
+   <entry>
+        <base>DHCP_START_GREATER_DHCP_END_ERRORS</base>
+        <trans>DHCP Server : error....Incorrect range of IPs, the DHCP Start is greater than the DHCP End , Update unsuccessfull</trans>
+    </entry>
+   <entry>
+        <base>CLICK_HERE_TO_MAIN_PANEL</base>
+        <trans><![CDATA[<b><a href=dhcpd>Click Here</a></b> to return to the main panel]]></trans>
+    </entry>
+   <entry>
+        <base>DHCP_RANGE_MUST_NOT_INCLUDE_SERVER_IP</base>
+        <trans>DHCP Server : error....Incorrect range of IPs, the range of IP address allocation must not include the server address, Update unsuccessfull</trans>
+    </entry>
+   <entry>
+        <base>DHCP_RANGE_WITH_BAD_IP</base>
+        <trans>DHCP Server address : error....Incorrect IP in the DHCP range, Update unsuccessfull</trans>
+    </entry>
+   <entry>
+        <base>WINSSERVER_BAD_IP</base>
+        <trans>WINS Server address : error....Incorrect IP, Update unsuccessfull</trans>
+    </entry>
+   <entry>
+        <base>DNS_SERVER_WITH_BAD_IP</base>
+        <trans>Custom DNS Server address : error....Incorrect IP, Update unsuccessfull</trans>
+    </entry>
+   <entry>
+        <base>GATEWAY_BAD_IP</base>
+        <trans>Gateway Custom Server address : error....Incorrect IP, Update unsuccessfull</trans>
+    </entry>
+   <entry>
+        <base>SUCCESSFULLY_SAVED_SETTINGS</base>
+        <trans><![CDATA[<font color="green">Successfully saved settings</font>]]></trans>
+    </entry>
+   <entry>
+        <base>REMOVE_A_DHCP_LEASE_TITLE</base>
+        <trans>Removing a DHCP Lease</trans>
+    </entry>
+   <entry>
+        <base>REMOVE_A_DHCP_LEASE</base>
+        <trans>Remove an entry in dhcpd.leases</trans>
+    </entry>
+   <entry>
+        <base>ARE_YOU_SURE</base>
+        <trans>are you sure ?</trans>
+    </entry>
+   <entry>
+        <base>REMOVE_A_DHCP_LEASE_ACTION</base>
+        <trans>You are about to remove a client from the dhcpd.leases file.</trans>
+    </entry>
+   <entry>
+        <base>SUCCESSFULLY_DELETED_THE_CLIENT</base>
+        <trans><![CDATA[<font color="green">Successfully deleted  in dhcpd.leases the client : </font>]]></trans>
+    </entry>
+   <entry>
+        <base>WAKING_A_REMOTE_COMPUTER_TITLE</base>
+        <trans>Waking Up a remote computer</trans>
+    </entry>
+   <entry>
+        <base>WAKING_A_REMOTE_COMPUTER</base>
+        <trans>You are about to wake up  a remote computer.</trans>
+    </entry>
+   <entry>
+        <base>WAKING_A_REMOTE_COMPUTER_ACTION</base>
+        <trans>Are you sure you want to wake on lan the client : </trans>
+    </entry>
+
+   <entry>
+        <base>WAKE_UP</base>
+        <trans>Wake UP</trans>
+    </entry>
+   <entry>
+        <base>REMOVE</base>
+        <trans>Remove</trans>
+    </entry>
+   <entry>
+        <base>SUCCESSFULLY_CLIENT_WOL_REQUEST</base>
+        <trans><![CDATA[<font color="green">Successfully request to wake up the client. The computer may take time to wake up.</font>]]></trans>
+    </entry>
+   <entry>
+        <base>ALL_OF_THEM</base>
+        <trans>All of them</trans>
+    </entry>
+   <entry>
+        <base>SENDING_A_WINPOPUP</base>
+        <trans>Sending a WinPopup</trans>
+    </entry>
+   <entry>
+        <base>SENDING_A_WINPOPUP_TO</base>
+        <trans>You are about to send a WinPopup to </trans>
+    </entry>
+   <entry>
+        <base>YOUR_MESSAGE</base>
+        <trans>Your message</trans>
+    </entry>
+   <entry>
+        <base>WRITE_YOUR_MESSAGE</base>
+        <trans>Write your message here</trans>
+    </entry>
+   <entry>
+        <base>DO_YOU_WANT_TO_SENT</base>
+        <trans>Do you want to send this message to</trans>
+    </entry>
+   <entry>
+        <base>SEND_WINPOPUP_TO</base>
+        <trans>Send a WinPopup to</trans>
+    </entry>
+  <entry>
+        <base>SUCCESSFULLY_SENT_MESSAGE</base>
+        <trans><![CDATA[<font color="green">Successfully sent message popup to</font>]]></trans>
+    </entry>
+  <entry>
+        <base>WARNING_NO_WINPOPUP_GARANTY</base>
+        <trans><![CDATA[<font color="orange">Warning, there is no garanty that the popup will appear on the remote computer.</font>]]></trans>
+    </entry>
+  <entry>
+        <base>MANAGING_DHCP_CLIENT</base>
+        <trans>Managing DHCP clients</trans>
+    </entry>
+  <entry>
+        <base>STATUS_REPORT</base>
+        <trans>Operation status report :</trans>
+    </entry>
+  <entry>
+        <base>REFRESH_CONNECTED_IP_LIST</base>
+        <trans>You may want to refresh this list ?</trans>
+    </entry>
+  <entry>
+        <base>REFRESH</base>
+        <trans>Refresh the list</trans>
+    </entry>
+  <entry>
+        <base>CLEAN_ALL_DHCPLEASES</base>
+        <trans>You may want to clean the dhcp.leases</trans>
+    </entry>
+  <entry>
+        <base>REMOVE_ALL_LEASES</base>
+        <trans>Remove all leases</trans>
+    </entry>
+  <entry>
+        <base>NETWORK_NAME</base>
+        <trans>Network Name</trans>
+    </entry>
+  <entry>
+        <base>STATUS_CLICK_FOR_WOL</base>
+        <trans>Status - click for WOL</trans>
+    </entry>
+  <entry>
+        <base>START_DATE</base>
+        <trans>Start Date</trans>
+    </entry>
+  <entry>
+        <base>END_DATE</base>
+        <trans>End Date</trans>
+    </entry>
+  <entry>
+        <base>MAC_ADDRESS</base>
+        <trans>MAC Address</trans>
+    </entry>
+  <entry>
+        <base>NOT_CHECKED</base>
+        <trans><![CDATA[<font color="orange">Not Checked...</font>]]></trans>
+    </entry>
+  <entry>
+        <base>ACTIVE_DEVICE</base>
+        <trans><![CDATA[<font color='green'>Active Device</font>]]></trans>
+    </entry>
+  <entry>
+        <base>WAKE_UP_ACTION</base>
+        <trans><![CDATA[<font color="red">Wake-Up...</font>]]></trans>
+    </entry>
+  <entry>
+        <base>REMOVE_ACTION</base>
+        <trans>Remove...</trans>
+    </entry>
+  <entry>
+        <base>WINPOPUP_ACTION</base>
+        <trans>WinPopup...</trans>
+    </entry>
+  <entry>
+        <base>NO_CONNECTED_COMPUTERS</base>
+        <trans>There are no connected computers</trans>
+    </entry>
+  <entry>
+        <base>REMOVE_DHCP_LEASE_TITLE</base>
+        <trans>Removing all DHCP Lease</trans>
+    </entry>
+  <entry>
+        <base>REMOVE_DHCP_LEASE_WARNING</base>
+        <trans><![CDATA[<font color="red">Remove all entries in dhcpd.leases may cause issues</font>]]></trans>
+    </entry>
+  <entry>
+        <base>REMOVE_DHCP_LEASE_WARNING2</base>
+        <trans>The lease file is a log-structured file - whenever a lease changes, the
+       contents of that lease are written to the end of the file. This means that it is entirely possible for there to  be  two
+       or  more  declarations  of the same lease in the lease file at the same
+       time. In that case,  the  instance  of  that  particular  lease  that
+       appears last in the file is the one that is in effect.</trans>
+    </entry>
+   <entry>
+        <base>SUCCESSFULLY_REMOVED_ALL_LEASES</base>
+        <trans><![CDATA[<font color="green">Successfully deleted all leases.</font>]]></trans>
+    </entry>
+  <entry>
+        <base>REMOVE_ALL_LEASES_ACTION</base>
+        <trans>Remove all dhcp leases</trans>
+    </entry>
+  <entry>
+        <base>SCANNING_NETWORK_TITLE</base>
+        <trans>Scanning your network, the time needed depends of your subnet mask</trans>
+    </entry>
+  <entry>
+        <base>NETWORK_VALUES_FOUND</base>
+        <trans>Please wait .... Your subnet and your netmask appear to be :</trans>
+    </entry>
+   <entry>
+        <base>ERROR_WHILE_REMOVING_ALL_LEASES</base>
+        <trans><![CDATA[<font color="red">Error while removing all dhcp Leases</font>]]></trans>
+    </entry>
+   <entry>
+        <base>ERROR_WHILE_SAVING_SETTINGS</base>
+        <trans><![CDATA[<font color="red">Error while saving settings</font>]]></trans>
+    </entry>
+</lexicon>
+

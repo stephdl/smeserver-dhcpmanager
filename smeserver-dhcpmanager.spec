@@ -1,15 +1,12 @@
 %define name smeserver-dhcpmanager
-%define version 1.5
-%define release 12
+%define version 2.0
+%define release 1
 
 Summary: provide a dhcp panel in the server-manager for The SME Server
 Name: %{name}
 Version: %{version}
 Release: %{release}%{?dist}
 Source: %{name}-%{version}.tar.gz
-#Patch0:  smeserver-dhcpmanager-1.5-checkip-scanIP-and-new-panelIP.patch
-#Patch1: smeserver-dhcpmanager-1.5-wording-scan_network-remove_all_leases-other_changes.patch
-#Patch2: smeserver-dhcpmanager-1.5-add_default_values-change_nmap_options.patch
 License: GNU GPL version 2
 URL: http://www.contribs.org
 Group: SMEserver/addon
@@ -26,6 +23,10 @@ AutoReqProv: no
 Implementation of some feature arround dhcp clients like : wol, cleaning dhcpd.leases, Scan of your network etc//
 
 %changelog
+* Wed Aug 12 2015 Stephane de Labrusse <stephdl@de-labrusse.fr> smeserver-dhcpmanager-2.0-1.sme
+-Translations added
+-new WebUI
+
 * Sun May 18 2014 Stephane de Labrusse <stephdl@de-labrusse.fr> smeserver-dhcpmanager-1.5-12
 - First release to sme9
 
@@ -53,9 +54,6 @@ Implementation of some feature arround dhcp clients like : wol, cleaning dhcpd.l
 
 %prep
 %setup
-#%patch0 -p1
-#%patch1 -p1
-#%patch2 -p1
 %build
 perl createlinks
 
